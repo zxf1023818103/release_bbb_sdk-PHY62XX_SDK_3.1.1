@@ -69,18 +69,20 @@
 #include "vendormodel_server.h"
 #include "EXT_cbtimer.h"
 #include "net_internal.h"
+#include "log.h"
+#include "sht30.h"
 
 
 #undef USE_HEALTH            // enable Light Lightness server model
-#define USE_HSL                 // enable Light HSL server model
-#define USE_LIGHTNESS            // enable Light Lightness server model
-#define  USE_CTL                 // disable Light CTL server model
+#undef USE_HSL                 // enable Light HSL server model
+#undef USE_LIGHTNESS            // enable Light Lightness server model
+#undef  USE_CTL                 // disable Light CTL server model
 #undef USE_SCENE               // enable Light Scene server model
 #define USE_VENDORMODEL         // enable Light vendormodel server model
-#define  EASY_BOUNDING
+#undef  EASY_BOUNDING
 
 /* Console Input/Output */
-#define CONSOLE_OUT(...)    printf(__VA_ARGS__)
+#define CONSOLE_OUT(...)    LOG(__VA_ARGS__)
 #define CONSOLE_IN(...)     scanf(__VA_ARGS__)
 extern uint32_t osal_sys_tick;
 
@@ -139,6 +141,13 @@ extern UCHAR blebrr_prov_started;
 
 /* Provsion timeout handle */
 EM_timer_handle procfg_timer_handle = EM_TIMER_HANDLE_INIT_VAL;
+
+static uint8 onoff;
+static uint8 onoff_changed;
+static uint8 heartbeat;
+static uint8 lightness;
+static uint8 lightness_changed;
+static uint8 rgb[3] = { 0xff, 0xff, 0xff };
 
 /* --------------------------------------------- Global Definitions */
 
@@ -334,10 +343,10 @@ UCHAR UI_proxy_state_get(void)
 static MS_STATE_GENERIC_ONOFF_STRUCT UI_generic_onoff;
 
 /* Generic OnOff Model state Initialization */
-static void UI_generic_onoff_model_states_initialization(void)
-{
-    EM_mem_set(&UI_generic_onoff, 0, sizeof(UI_generic_onoff));
-}
+// static void UI_generic_onoff_model_states_initialization(void)
+// {
+//     EM_mem_set(&UI_generic_onoff, 0, sizeof(UI_generic_onoff));
+// }
 
 /* Generic OnOff Model Get Handler */
 static API_RESULT UI_generic_onoff_model_state_get(UINT16 state_t, UINT16 state_inst, void* param, UINT8 direction)
@@ -919,17 +928,48 @@ void UI_vendor_defined_model_states_initialization(void)
 /* Vendor Defined Model Get Handler */
 void UI_vendor_example_model_state_get(UINT16 state_t, UINT16 state_inst, void* param, UINT8 direction)
 {
+    LOG("UI_vendor_example_model_state_get state_t %04x\r\n", state_t);
     switch(state_t)
     {
+    case MS_STATE_VENDORMODEL_HEARTBEAT_T:
+    {
+        MS_ACCESS_VENDORMODEL_STATE_PARAMS* param_p;
+        param_p = (MS_ACCESS_VENDORMODEL_STATE_PARAMS*)param;
+        param_p->vendormodel_type = MS_STATE_VENDORMODEL_HEARTBEAT_T;
+        param_p->vendormodel_param = &heartbeat;
+    }
+    break;
     case MS_STATE_VENDORMODEL_ONOFF_T:
     {
-        UINT8   onoff_status;
+        MS_ACCESS_VENDORMODEL_STATE_PARAMS* param_p;
+        param_p = (MS_ACCESS_VENDORMODEL_STATE_PARAMS*)param;
+        param_p->vendormodel_type = MS_STATE_VENDORMODEL_ONOFF_T;
+        param_p->vendormodel_param = &UI_generic_onoff.onoff;
+    }
+    break;
+    case MS_STATE_VENDORMODEL_LIGHTNESS_T:
+    {
+        MS_ACCESS_VENDORMODEL_STATE_PARAMS* param_p;
+        param_p = (MS_ACCESS_VENDORMODEL_STATE_PARAMS*)param;
+        param_p->vendormodel_type = MS_STATE_VENDORMODEL_ONOFF_T;
+        param_p->vendormodel_param = &lightness;
+    }
+    break;
+    case MS_STATE_VENDORMODEL_RGB_T:
+    {
+        MS_ACCESS_VENDORMODEL_STATE_PARAMS* param_p;
+        param_p = (MS_ACCESS_VENDORMODEL_STATE_PARAMS*)param;
+        param_p->vendormodel_type = MS_STATE_VENDORMODEL_RGB_T;
+        param_p->vendormodel_param = rgb;
+    }
+    break;
+    case MS_STATE_VENDORMODEL_SENSOR_T:
+    {
         MS_ACCESS_VENDORMODEL_STATE_PARAMS* param_p;
         param_p = (MS_ACCESS_VENDORMODEL_STATE_PARAMS*)param;
         /* Ignoring Instance and direction right now */
-        param_p->vendormodel_type = MS_STATE_VENDORMODEL_ONOFF_T;
-        onoff_status = UI_generic_onoff.onoff;
-        param_p->vendormodel_param = &onoff_status;
+        param_p->vendormodel_type = MS_STATE_VENDORMODEL_SENSOR_T;
+        param_p->vendormodel_param = sht30_sensor_data;
     }
     break;
 
@@ -983,26 +1023,103 @@ void UI_vendor_example_model_state_set(UINT16 state_t, UINT16 state_inst, void* 
 {
     switch(state_t)
     {
+    case MS_STATE_VENDORMODEL_HEARTBEAT_T:
+    {
+        LOG("rcv MS_STATE_VENDORMODEL_HEARTBEAT_T\r\n");
+
+        UINT8*    param_p;
+        param_p = (UCHAR*)param;
+        heartbeat = *param_p;
+    }
+    break;
     case MS_STATE_VENDORMODEL_ONOFF_T:
     {
         UINT8*    param_p;
         param_p = (UCHAR*)param;
-        generic_onoff_set_pl(*param_p);
+        onoff = *param_p;
+
+        LOG("rcv MS_STATE_VENDORMODEL_ONOFF_T: %02x\r\n", onoff);
+        
+        if ((onoff && lightness) || (!onoff && !lightness)) {
+            // do nothing
+        }
+        else if (onoff && !lightness) {
+            lightness = 255;
+            generic_onoff_set_pl(1);
+            LOG("light on\r\n");
+        }
+        else { // !onoff && lightness
+            lightness = 0;
+            generic_onoff_set_pl(0);
+            LOG("light off\r\n");
+        }
     }
     break;
-
-    case MS_STATE_VENDORMODEL_HSL_T:
+    case MS_STATE_VENDORMODEL_LIGHTNESS_T:
     {
-        MS_STATE_VENDOR_MODEL_HSL_STRUCT* param_p;
-        param_p = (MS_STATE_VENDOR_MODEL_HSL_STRUCT*)param;
-        UI_light_hsl.hsl_lightness = param_p->hsl_lightness;
-        UI_light_hsl.hsl_hue = param_p->hsl_hue;
-        UI_light_hsl.hsl_saturation = param_p->hsl_saturation;
-        UI_light_hsl_set_actual(0,UI_light_hsl.hsl_lightness,UI_light_hsl.hsl_hue,UI_light_hsl.hsl_saturation,0);
-        //*param_p = UI_light_hsl;
-        CONSOLE_OUT("[state] current Hue: 0x%04X\n", UI_light_hsl.hsl_hue);
-        CONSOLE_OUT("[state] current Saturation: 0x%04X\n", UI_light_hsl.hsl_saturation);
-        CONSOLE_OUT("[state] current Lightness: 0x%04X\n", UI_light_hsl.hsl_lightness);
+        UINT8*    param_p;
+        param_p = (UCHAR*)param;
+        lightness = *param_p;
+        
+        uint16 red = rgb[0], green = rgb[1], blue = rgb[2];
+        
+        LOG("rcv MS_STATE_VENDORMODEL_LIGHTNESS_T: %02x\r\n", lightness);
+        
+        red *= lightness;
+        red /= 0xff;
+
+        green *= lightness;
+        green /= 0xff;
+
+        blue *= lightness;
+        blue /= 0xff;
+
+        light_config(LIGHT_RED, red);
+        light_config(LIGHT_GREEN, green);
+        light_config(LIGHT_BLUE, blue);
+        light_reflash();
+
+        if (lightness && !onoff) {
+            onoff = 1;
+            onoff_changed = 1;
+        }
+        else if (!lightness && onoff) {
+            onoff = 0;
+            onoff_changed = 1;
+        }
+    }
+    break;
+    case MS_STATE_VENDORMODEL_RGB_T:
+    {
+        if (lightness != 0xff) {
+            lightness = 0xff;
+            lightness_changed = 1;
+        }
+        
+        UINT8*    param_p;
+        param_p = (UCHAR*)param;
+
+        uint16 red = param_p[0], green = param_p[1], blue = param_p[2];
+        
+        LOG("rcv MS_STATE_VENDORMODEL_RGB_T: #%02x%02x%02x\r\n", red, green, blue);
+        EM_mem_copy(rgb, param_p, sizeof rgb);
+        
+        light_config(LIGHT_RED, red);
+        light_config(LIGHT_GREEN, green);
+        light_config(LIGHT_BLUE, blue);
+        light_reflash();
+
+        if (!onoff) {
+            onoff = 1;
+            onoff_changed = 1;
+        }
+    }
+    break;
+    case MS_STATE_VENDORMODEL_RESET_T:
+    {
+        LOG("rcv MS_STATE_VENDORMODEL_RESET_T\r\n");
+        MS_common_reset();
+        EM_start_timer (&thandle, 1, timeout_cb, NULL, 0);
     }
     break;
 
@@ -1042,6 +1159,9 @@ API_RESULT UI_phy_model_server_cb
     retval = API_SUCCESS;
     opcode = msg_raw->opcode;
 
+    LOG("opcode: %04x data: ", msg_raw->opcode);
+    LOG_DUMP_BYTE(msg_raw->data_param, msg_raw->data_len);
+
     switch(opcode)
     {
     case MS_ACCESS_VENDORMODEL_WRITECMD_OPCODE:
@@ -1053,7 +1173,7 @@ API_RESULT UI_phy_model_server_cb
         {
         case MS_STATE_VENDORMODEL_RESET_T:
         {
-            printf("rcv MS_STATE_PHY_MODEL_RESET_T\n");
+            LOG("rcv MS_STATE_PHY_MODEL_RESET_T\n");
             MS_common_reset();
             EM_start_timer (&thandle, 1, timeout_cb, NULL, 0);
         }
@@ -1106,7 +1226,7 @@ API_RESULT UI_phy_model_server_cb
             req_type->to_be_acked = 0x01;
         }
 
-//            printf("[PDU_Rx] Pkt.INDEX:0x%04X\n",message_index);
+        LOG("[PDU_Rx] Pkt.INDEX:0x%04X\n",message_index);
     }
     break;
 
@@ -1117,22 +1237,48 @@ API_RESULT UI_phy_model_server_cb
     /* Check message type */
     if (MS_ACCESS_MODEL_REQ_MSG_T_GET == req_type->type)
     {
-//        CONSOLE_OUT(
-//        "[VENDOR_EXAMPLE] GET Request.\n");
+       CONSOLE_OUT(
+       "[VENDOR_EXAMPLE] GET Request.\n");
         UI_vendor_example_model_state_get(state_params->vendormodel_type, 0, &current_state_params, 0);
     }
     else if (MS_ACCESS_MODEL_REQ_MSG_T_SET == req_type->type)
     {
-//        CONSOLE_OUT(
-//            "[VENDOR_EXAMPLE] SET Request.\n");
+       CONSOLE_OUT(
+           "[VENDOR_EXAMPLE] SET Request.\n");
         UI_vendor_example_model_state_set(state_params->vendormodel_type, 0, state_params->vendormodel_param, 0);
         current_state_params.vendormodel_type = state_params->vendormodel_type;
         current_state_params.vendormodel_param = state_params->vendormodel_param;
+
+        if (onoff_changed) {
+            UCHAR buffer[20];
+            UINT16 marker = 0;
+            buffer[marker] = ++vendor_tid;
+            marker++;
+            MS_PACK_LE_2_BYTE_VAL(&buffer[marker], MS_STATE_VENDORMODEL_ONOFF_T);
+            marker += 2;
+            buffer[marker] = onoff;
+            marker++;
+            MS_access_publish(&ctx->handle, MS_ACCESS_VENDORMODEL_STATUS_OPCODE, buffer, marker, 1);
+            onoff_changed = 0;
+        }
+
+        if (lightness_changed) {
+            UCHAR buffer[20];
+            UINT16 marker = 0;
+            buffer[marker] = ++vendor_tid;
+            marker++;
+            MS_PACK_LE_2_BYTE_VAL(&buffer[marker], MS_STATE_VENDORMODEL_LIGHTNESS_T);
+            marker += 2;
+            buffer[marker] = lightness;
+            marker++;
+            MS_access_publish(&ctx->handle, MS_ACCESS_VENDORMODEL_STATUS_OPCODE, buffer, marker, 1);
+            lightness_changed = 0;
+        }
     }
     else
     {
-//        CONSOLE_OUT(
-//            "[VENDOR_EXAMPLE] Other Request.\n");
+       CONSOLE_OUT(
+           "[VENDOR_EXAMPLE] Other Request. %02x\r\n", req_type->type);
         current_state_params.vendormodel_type = state_params->vendormodel_type;
         current_state_params.vendormodel_param = state_params->vendormodel_param;
     }
@@ -1140,8 +1286,8 @@ API_RESULT UI_phy_model_server_cb
     /* See if to be acknowledged */
     if (0x01 == req_type->to_be_acked)
     {
-//        CONSOLE_OUT(
-//            "[VENDOR_EXAMPLE] Sending Response.\n");
+       CONSOLE_OUT(
+           "[VENDOR_EXAMPLE] Sending Response.\n");
         /* Parameters: Request Context, Current State, Target State (NULL: to be ignored), Remaining Time (0: to be ignored), Additional Parameters (NULL: to be ignored) */
         retval = MS_vendormodel_server_state_update(ctx, &current_state_params, NULL, 0, NULL,marker);
     }
@@ -1227,12 +1373,12 @@ void* UI_scene_server_cb
             return NULL;
 
         index = *(UINT32*)event_param;
-        printf("store scene, index = %d \r\n", index);
+        LOG("store scene, index = %d \r\n", index);
         state_p = (UI_STATE_SCENE_STRUCT*)EM_alloc_mem(sizeof(UI_STATE_SCENE_STRUCT));
 
         if (NULL == state_p)
         {
-            printf("Allocate memory fail, size = %d\r\n", sizeof(UI_STATE_SCENE_STRUCT));
+            LOG("Allocate memory fail, size = %d\r\n", sizeof(UI_STATE_SCENE_STRUCT));
             return NULL;
         }
 
@@ -1250,14 +1396,14 @@ void* UI_scene_server_cb
             return NULL;
 
         index = *(UINT32*)event_param;
-        printf("delete scene, index = %d \r\n", index);
+        LOG("delete scene, index = %d \r\n", index);
         state_p = (UI_STATE_SCENE_STRUCT*)context;
 
         if (state_p != NULL
                 && (state_p->index == index))
         {
             EM_free_mem(state_p);
-            printf("scene %d deleted\r\n", index);
+            LOG("scene %d deleted\r\n", index);
         }
     }
     break;
@@ -1268,7 +1414,7 @@ void* UI_scene_server_cb
             return NULL;
 
         index = *(UINT32*)event_param;
-        printf("start recalling scene, index = %d \r\n", index);
+        LOG("start recalling scene, index = %d \r\n", index);
         state_p = (UI_STATE_SCENE_STRUCT*)context;
 
         if (state_p != NULL
@@ -1282,13 +1428,13 @@ void* UI_scene_server_cb
 
     case MS_SCENE_EVENT_RECALL_COMPLETE:
     {
-        printf("MS_SCENE_EVENT_RECALL_COMPLETE \r\n");
+        LOG("MS_SCENE_EVENT_RECALL_COMPLETE \r\n");
 
         if (event_length != 4)           // UINT32
             return NULL;
 
         index = *(UINT32*)event_param;
-        printf("complete recalling scene, index = %d \r\n", index);
+        LOG("complete recalling scene, index = %d \r\n", index);
         state_p = (UI_STATE_SCENE_STRUCT*)context;
 
         if (state_p != NULL
@@ -1301,13 +1447,13 @@ void* UI_scene_server_cb
 
     case MS_SCENE_EVENT_RECALL_IMMEDIATE:
     {
-        printf("MS_SCENE_EVENT_RECALL_IMMEDIATE \r\n");
+        LOG("MS_SCENE_EVENT_RECALL_IMMEDIATE \r\n");
 
         if (event_length != 4)           // UINT32
             return NULL;
 
         index = *(UINT32*)event_param;
-        printf("complete recalling scene, index = %d \r\n", index);
+        LOG("complete recalling scene, index = %d \r\n", index);
         state_p = (UI_STATE_SCENE_STRUCT*)context;
 
         if (state_p != NULL
@@ -1361,7 +1507,7 @@ API_RESULT UI_register_scene_model_server
 static void UI_model_states_initialization(void)
 {
     /* Generic OnOff States */
-    UI_generic_onoff_model_states_initialization();
+    //UI_generic_onoff_model_states_initialization();
     #ifdef USE_HSL
     /* Light HSL States */
     UI_light_hsl_model_states_initialization();
@@ -1470,7 +1616,7 @@ void UI_provcfg_complete_timeout_handler(void* args, UINT16 size)
     procfg_timer_handle = EM_TIMER_HANDLE_INIT_VAL;
     MS_common_reset();
     EM_start_timer (&thandle, 1, timeout_cb, NULL, 0);
-    printf("Provisining and config Complete Timeout\n");
+    LOG("Provisining and config Complete Timeout\n");
 }
 
 #if (CFG_HEARTBEAT_MODE)
@@ -1478,7 +1624,7 @@ static void heartbeat_reply_delay_handler(void* args, UINT16 size)
 {
     HEARTBEAT_RCV_PARAMS call_receive_para;
     MS_IGNORE_UNUSED_PARAM(size);
-//    printf("__rcv 0x%04X 0x%04X 0x%02X\n",call_receive_para.heartbeat_addr,call_receive_para.heartbeat_subnet_index,call_receive_para.heartbeat_countlog);
+//    LOG("__rcv 0x%04X 0x%04X 0x%02X\n",call_receive_para.heartbeat_addr,call_receive_para.heartbeat_subnet_index,call_receive_para.heartbeat_countlog);
     UCHAR      buffer[8];
     UCHAR*        pdu_ptr;
     UINT16      marker;
@@ -1494,7 +1640,7 @@ static void heartbeat_reply_delay_handler(void* args, UINT16 size)
     marker++;
 //    for(UINT8 i=0;i<marker;i++)
 //    {
-//        printf("%02X\n",buffer[i]);
+//        LOG("%02X\n",buffer[i]);
 //    }
     opcode = MS_ACCESS_PHY_MODEL_WRITECMD_OPCODE;
     /* Publish - reliable */
@@ -1530,7 +1676,7 @@ static API_RESULT UI_heartbeat_rcv_callback
     receive_para.heartbeat_addr = addr;
     receive_para.heartbeat_countlog = countlog;
     receive_para.heartbeat_subnet_index = subnet_index;
-//    printf("rcv 0x%04X 0x%04X 0x%02X\n",addr,subnet_index,countlog);
+//    LOG("rcv 0x%04X 0x%04X 0x%02X\n",addr,subnet_index,countlog);
     MS_access_cm_get_primary_unicast_address(&saddr);
     receive_para.heartbeat_sddr = saddr;
     heartbeat_reply_dly_thandle = EM_TIMER_HANDLE_INIT_VAL;
@@ -1547,10 +1693,10 @@ static API_RESULT UI_heartbeat_rcv_callback
 
 static API_RESULT UI_heartbeat_rcv_timeout_callback(void)
 {
-    printf("heartbeat_timeout_callback\n");
+    LOG("heartbeat_timeout_callback\n");
     MS_common_reset();
     EM_start_timer (&thandle, 1, timeout_cb, NULL, 0);
-//    printf("heartbeat_timeout_callback\n");
+//    LOG("heartbeat_timeout_callback\n");
     return API_SUCCESS;
 }
 #endif
@@ -2049,7 +2195,7 @@ API_RESULT UI_sample_binding_app_key(void)
         {
             /* Found a Valid App Key */
             /* Keeping the retval as API_SUCCESS */
-            retval=MS_access_bind_model_app(UI_generic_onoff_server_model_handle, handle);
+            //retval=MS_access_bind_model_app(UI_generic_onoff_server_model_handle, handle);
             #ifdef  USE_LIGHTNESS
             retval=MS_access_bind_model_app(UI_light_lightness_server_model_handle, handle);
             CONSOLE_OUT("BINDING App Key %04x (%04x %04x)\n",retval,UI_light_lightness_server_model_handle,handle);
@@ -2131,7 +2277,7 @@ void vm_subscriptiong_add (MS_NET_ADDR addr)
     sub_addr.use_label=0;
     sub_addr.addr=addr;
     MS_access_ps_store_disable(MS_TRUE);
-    MS_access_cm_add_model_subscription(UI_generic_onoff_server_model_handle,&sub_addr);
+    //MS_access_cm_add_model_subscription(UI_generic_onoff_server_model_handle,&sub_addr);
     #ifdef  USE_LIGHTNESS
     MS_access_cm_add_model_subscription(UI_light_lightness_server_model_handle,&sub_addr);
     #endif
@@ -2147,6 +2293,7 @@ void vm_subscriptiong_add (MS_NET_ADDR addr)
     MS_access_cm_add_model_subscription(UI_scene_server_model_handle,&sub_addr);
     MS_access_cm_add_model_subscription(UI_scene_setup_server_model_handle,&sub_addr);
     #endif
+    MS_access_cm_add_model_subscription(UI_vendor_defined_server_model_handle,&sub_addr);
     MS_access_ps_store_disable(MS_FALSE);
     MS_access_ps_store_all_record();
 }
@@ -2157,7 +2304,7 @@ void vm_subscriptiong_delete (MS_NET_ADDR addr)
     sub_addr.use_label=0;
     sub_addr.addr=addr;
     MS_access_ps_store_disable(MS_TRUE);
-    MS_access_cm_delete_model_subscription(UI_generic_onoff_server_model_handle,&sub_addr);
+    //MS_access_cm_delete_model_subscription(UI_generic_onoff_server_model_handle,&sub_addr);
     #ifdef  USE_LIGHTNESS
     MS_access_cm_delete_model_subscription(UI_light_lightness_server_model_handle,&sub_addr);
     #endif
@@ -2173,6 +2320,7 @@ void vm_subscriptiong_delete (MS_NET_ADDR addr)
     MS_access_cm_delete_model_subscription(UI_scene_server_model_handle,&sub_addr);
     MS_access_cm_delete_model_subscription(UI_scene_setup_server_model_handle,&sub_addr);
     #endif
+    MS_access_cm_delete_model_subscription(UI_vendor_defined_server_model_handle,&sub_addr);
     MS_access_ps_store_disable(MS_FALSE);
     MS_access_ps_store_all_record();
 }
@@ -2564,7 +2712,7 @@ void UI_sample_reinit(void)
         */
         role = PROV_ROLE_DEVICE;
         brr  = PROV_BRR_GATT|PROV_BRR_ADV;  //PROV_BRR_ADV,PROV_BRR_GATT
-        printf("Bearer type = 0x%02X(Bit0-adv, Bit1-GATT)\r\n", brr);
+        LOG("Bearer type = 0x%02X(Bit0-adv, Bit1-GATT)\r\n", brr);
 //        UI_prov_brr_handle = brr;
         /**
             Setting up an Unprovisioned Device over GATT
@@ -2603,7 +2751,7 @@ void UI_sample_reinit(void)
 
                 if(ms_provisioner_addr != 0)
                 {
-                    printf("sub ms_provisioner_addr 0x%04X\n",ms_provisioner_addr);
+                    LOG("sub ms_provisioner_addr 0x%04X\n",ms_provisioner_addr);
                     UI_trn_set_heartbeat_subscription(ms_provisioner_addr);
                 }
 
@@ -2617,7 +2765,7 @@ void UI_sample_reinit(void)
 
                 if(ms_provisioner_addr != 0)
                 {
-                    printf("sub ms_provisioner_addr 0x%04X\n",ms_provisioner_addr);
+                    LOG("sub ms_provisioner_addr 0x%04X\n",ms_provisioner_addr);
                     UI_trn_set_heartbeat_subscription(ms_provisioner_addr);
                 }
 

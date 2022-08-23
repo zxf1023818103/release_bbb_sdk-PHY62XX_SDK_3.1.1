@@ -159,7 +159,7 @@ void light_pwm_init(void)
         pwm_ch[i].pwmPin = GPIO_DUMMY;
         pwm_ch[i].pwmDiv = PWM_CLK_NO_DIV;
         pwm_ch[i].pwmMode = PWM_CNT_UP;
-        pwm_ch[i].pwmPolarity = PWM_POLARITY_RISING;
+        pwm_ch[i].pwmPolarity = PWM_POLARITY_FALLING;
         pwm_ch[i].cmpVal = 0;
         pwm_ch[i].cntTopVal = LIGHT_TOP_VALUE;
     }

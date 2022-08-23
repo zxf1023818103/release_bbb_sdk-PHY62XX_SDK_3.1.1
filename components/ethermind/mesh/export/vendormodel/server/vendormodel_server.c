@@ -12,6 +12,7 @@
 
 /* --------------------------------------------- Header File Inclusion */
 #include "vendormodel_server.h"
+#include "log.h"
 
 
 /* --------------------------------------------- Data Types/ Structures */
@@ -61,7 +62,7 @@ __ATTR_SECTION_XIP__ API_RESULT MS_vendormodel_server_state_update
 {
     API_RESULT retval;
     /* TODO: Check what should be maximum length */
-    UCHAR      buffer[256];
+    UCHAR      buffer[20];
     UCHAR*     pdu_ptr;
     UINT16     marker;
     UINT32     opcode;
@@ -73,31 +74,39 @@ __ATTR_SECTION_XIP__ API_RESULT MS_vendormodel_server_state_update
 //    printf(
 //    "current_state_params->state_type 0x%04X.\n",current_state_params->phy_mode_type);
 
+    buffer[marker] = ++vendor_tid;
+    marker++;
+    MS_PACK_LE_2_BYTE_VAL(&buffer[marker], current_state_params->vendormodel_type);
+    marker += 2;
+    opcode = MS_ACCESS_VENDORMODEL_STATUS_OPCODE;
+
     switch (current_state_params->vendormodel_type)
     {
+    case MS_STATE_VENDORMODEL_HEARTBEAT_T:
     case MS_STATE_VENDORMODEL_ONOFF_T:
+    case MS_STATE_VENDORMODEL_LIGHTNESS_T:
     {
-        buffer[marker] = ++vendor_tid;
-        marker++;
-        MS_PACK_LE_2_BYTE_VAL(&buffer[marker], current_state_params->vendormodel_type);
-        marker += 2;
         EM_mem_copy(&buffer[marker], current_state_params->vendormodel_param, 1);
         marker++;
-        /* Set Opcode */
-        opcode = MS_ACCESS_VENDORMODEL_STATUS_OPCODE;
     }
     break;
 
-    case MS_STATE_VENDORMODEL_NOTIFY_T:
+    case MS_STATE_VENDORMODEL_RGB_T:
     {
-        EM_mem_copy(&buffer[marker], current_state_params->vendormodel_param, data_length);
-        marker += data_length;
-        /* Set Opcode */
-        opcode = MS_ACCESS_VENDORMODEL_NOTIFY_OPCODE;
+        EM_mem_copy(&buffer[marker], current_state_params->vendormodel_param, 3);
+        marker += 3;
+    }
+    break;
+
+    case MS_STATE_VENDORMODEL_SENSOR_T:
+    {
+        EM_mem_copy(&buffer[marker], current_state_params->vendormodel_param, 4);
+        marker += 4;
     }
     break;
 
     default:
+        marker = 0;
         break;
     }
 
@@ -110,6 +119,8 @@ __ATTR_SECTION_XIP__ API_RESULT MS_vendormodel_server_state_update
     {
         pdu_ptr = buffer;
     }
+
+    LOG_DUMP_BYTE(pdu_ptr, marker);
 
     retval = MS_access_reply
              (

@@ -67,7 +67,7 @@ extern "C"
 #if (BSP_BTN_HARDWARE_CONFIG == BSP_BTN_JUST_GPIO)
 
 #define BSP_SINGLE_BTN_NUM                                  (GPIO_SINGLE_BTN_NUM)
-#define BSP_COMBINE_BTN_NUM                                 (2)
+#define BSP_COMBINE_BTN_NUM                                 (0)
 #define BSP_TOTAL_BTN_NUM                                   (BSP_SINGLE_BTN_NUM + BSP_COMBINE_BTN_NUM)
 
 #elif  (BSP_BTN_HARDWARE_CONFIG == BSP_BTN_JUST_KSCAN)

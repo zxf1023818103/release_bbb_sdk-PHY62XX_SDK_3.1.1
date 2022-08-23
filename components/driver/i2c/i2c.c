@@ -412,7 +412,7 @@ int _hal_i2c_read_s(void* pi2c, uint8_t slave_addr, uint8_t reg, uint8_t* data, 
     hal_i2c_addr_update(pi2c, slave_addr);
     HAL_ENTER_CRITICAL_SECTION();
     hal_i2c_tx_start(pi2c);
-    _hal_i2c_send_byte(pi2c, reg);
+    //_hal_i2c_send_byte(pi2c, reg);
     hal_master_send_read_cmd(pi2c, size);
     HAL_EXIT_CRITICAL_SECTION();
 

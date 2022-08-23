@@ -40,7 +40,7 @@ LR_ROM_XIP  0x1101b000 0x01e000 {
 	pwm.o(+RO)
 	uart.o(+RO)
 	em_timer.o(+RO)
-	;vendormodel_server.o(+RO)
+	vendormodel_server.o(+RO)
 	;mesh_clients.o(+RO)
 	cli_model.o(+RO)
 	model_state_handler_pl.o(+RO)

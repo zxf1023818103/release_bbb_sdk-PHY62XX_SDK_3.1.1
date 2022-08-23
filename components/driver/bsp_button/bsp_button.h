@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-//#define BSP_BTN_LONG_PRESS_ENABLE
+#define BSP_BTN_LONG_PRESS_ENABLE
 
 #define BTN_SYS_TICK                            10  //unit:ms
 #define BTN_FILTER_TICK_COUNT                   5   //(BTN_SYS_TICK*BTN_FILTER_TICK_COUNT)            ms

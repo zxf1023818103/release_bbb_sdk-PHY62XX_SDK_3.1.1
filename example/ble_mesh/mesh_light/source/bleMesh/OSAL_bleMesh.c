@@ -78,6 +78,12 @@
 /* Application */
 #include "bleMesh.h"
 
+/* Button */
+#include "bsp_button_task.h"
+
+/* SHT30 */
+#include "sht30.h"
+
 /* Timer */
 #if defined ( EM_USE_EXT_TIMER )
     #include "cbTimer.h"
@@ -98,12 +104,14 @@ const pTaskEventHandlerFn tasksArr[] =
     GATT_ProcessEvent,                                                  // task 4
     GATTServApp_ProcessEvent,                                           // task 5
     bleMesh_ProcessEvent,                                               // task 6
+    Bsp_Btn_ProcessEvent,                                               // task 7
+    sht30_ProcessEvent,                                                 // task 8
 
     #if defined ( OSAL_CBTIMER_NUM_TASKS )
-    OSAL_CBTIMER_PROCESS_EVENT( osal_CbTimerProcessEvent ),             // task 7
+    OSAL_CBTIMER_PROCESS_EVENT( osal_CbTimerProcessEvent ),             // task 9
     #endif
     #if defined ( EM_USE_EXT_TIMER )
-    CBTIMER_PROCESS_EVENT( CbTimerProcessEvent ),                       // task 8
+    CBTIMER_PROCESS_EVENT( CbTimerProcessEvent ),                       // task 10
     #endif
 
 };
@@ -143,6 +151,10 @@ void osalInitTasks( void )
     GATTServApp_Init( taskID++ );
     /* Application */
     bleMesh_Init( taskID++ );
+    /* Button */
+    Bsp_Btn_Init( taskID++ );
+    /* SHT30 */
+    sht30_Init( taskID++ );
     #if defined ( OSAL_CBTIMER_NUM_TASKS )
     /* Callback Timer Tasks */
     osal_CbTimerInit( taskID );

@@ -87,6 +87,10 @@
 #include "cli_model.h"
 #include "flash.h"
 
+#include "bsp_button.h"
+#include "bsp_button_task.h"
+#include "bsp_gpio.h"
+
 /*********************************************************************
     MACROS
 */
@@ -132,6 +136,7 @@ static void bleMesh_ProcessGAPMsg( gapEventHdr_t* pMsg );
 static void bleMesh_ProcessL2CAPMsg( gapEventHdr_t* pMsg );
 static void bleMesh_ProcessGATTMsg( gattMsgEvent_t* pMsg );
 void bleMesh_uart_init(void);
+void hal_bsp_btn_callback(uint8_t evt);
 
 /*********************************************************************
     LOCAL VARIABLES
@@ -148,28 +153,36 @@ static UCHAR bleMesh_DiscCancel = FALSE;             // HZF todo, not use???
 
 UCHAR cmdstr[64];
 UCHAR cmdlen;
-DECL_CONST CLI_COMMAND cli_cmd_list[] =
+// DECL_CONST CLI_COMMAND cli_cmd_list[] =
+// {
+//     /* Help */
+//     { "help", "Help on this CLI Demo Menu", cli_demo_help },
+
+//     /* Reset */
+//     { "reset", "Reset the device", cli_demo_reset },
+
+//     /* internal status */
+//     { "status", "internal status", cli_internal_status },
+
+//     /*display key */
+//     { "key", "display key", cli_disp_key },
+
+//     /*heartbeat set */
+//     { "hbeart", "heartbeat set", cli_modelc_config_heartbeat_publication_set },
+
+//     /*AT raw data */
+//     { "ATMSH80", "raw data", cli_raw_data },
+
+//     /*get information */
+//     { "ATMSH81", "get information", cli_get_information }
+// };
+
+BTN_T usr_sum_btn_array[BSP_TOTAL_BTN_NUM];
+
+Gpio_Btn_Info gpio_btn_info =
 {
-    /* Help */
-    { "help", "Help on this CLI Demo Menu", cli_demo_help },
-
-    /* Reset */
-    { "reset", "Reset the device", cli_demo_reset },
-
-    /* internal status */
-    { "status", "internal status", cli_internal_status },
-
-    /*display key */
-    { "key", "display key", cli_disp_key },
-
-    /*heartbeat set */
-    { "hbeart", "heartbeat set", cli_modelc_config_heartbeat_publication_set },
-
-    /*AT raw data */
-    { "ATMSH80", "raw data", cli_raw_data },
-
-    /*get information */
-    { "ATMSH81", "get information", cli_get_information }
+    {P15},
+    hal_bsp_btn_callback,
 };
 
 /*********************************************************************
@@ -211,7 +224,7 @@ void bleMesh_Init( uint8 task_id )
     DevInfo_AddService();                           // Device Information Service
     ota_app_AddService();
     GATTServApp_RegisterForMsg(task_id);
-    bleMesh_uart_init();
+    //bleMesh_uart_init();
     osal_set_event( bleMesh_TaskID, BLEMESH_START_DEVICE_EVT );
     TRNG_INIT();
     // For DLE
@@ -219,6 +232,15 @@ void bleMesh_Init( uint8 task_id )
     llInitFeatureSetDLE(TRUE);
 //    HCI_LE_SetDefaultPhyMode(0, 0, 0x01, 0x01);
     hal_pwrmgr_lock(MOD_USR1);
+
+    if(PPlus_SUCCESS == hal_gpio_btn_init(&gpio_btn_info))
+    {
+        bsp_btn_gpio_flag = TRUE;
+    }
+    else
+    {
+        LOG("hal_gpio_btn_init error:%d\n",__LINE__);
+    }
 }
 
 
@@ -238,9 +260,9 @@ void bleMesh_Init( uint8 task_id )
 */
 
 #if (SDK_VER_CHIP == __DEF_CHIP_QFN32__)
-    #define GPIO_GREEN    P32
-    #define GPIO_BLUE     P33
-    #define GPIO_RED      P31
+    #define GPIO_GREEN    P11
+    #define GPIO_BLUE     P18
+    #define GPIO_RED      P7
 #else
     #define GPIO_GREEN    P3
     #define GPIO_BLUE     P7
@@ -279,27 +301,27 @@ uint16 bleMesh_ProcessEvent( uint8 task_id, uint16 events )
         GATT_RegisterForInd(bleMesh_TaskID);
         light_init(led_pins,3);
         light_blink_evt_cfg(bleMesh_TaskID,BLEMESH_LIGHT_PRCESS_EVT);
-        CLI_init((CLI_COMMAND*)cli_cmd_list,(sizeof (cli_cmd_list)/sizeof(CLI_COMMAND)));
+        //CLI_init((CLI_COMMAND*)cli_cmd_list,(sizeof (cli_cmd_list)/sizeof(CLI_COMMAND)));
         appl_mesh_sample();
         return ( events ^ BLEMESH_START_DEVICE_EVT );
     }
 
-    if (events & BLEMESH_UART_RX_EVT)
-    {
-        if ('\r' == cmdstr[cmdlen - 1])
-        {
-            cmdstr[cmdlen - 1] = '\0';
-            printf("%s", cmdstr);
-            CLI_process_line
-            (
-                cmdstr,
-                cmdlen
-            );
-            cmdlen = 0;
-        }
+    // if (events & BLEMESH_UART_RX_EVT)
+    // {
+    //     if ('\r' == cmdstr[cmdlen - 1] || '\n' == cmdstr[cmdlen - 1])
+    //     {
+    //         cmdstr[cmdlen - 1] = '\0';
+    //         LOG("%s", cmdstr);
+    //         CLI_process_line
+    //         (
+    //             cmdstr,
+    //             cmdlen
+    //         );
+    //         cmdlen = 0;
+    //     }
 
-        return ( events ^ BLEMESH_UART_RX_EVT );
-    }
+    //     return ( events ^ BLEMESH_UART_RX_EVT );
+    // }
 
     if (events & BLEMESH_GAP_SCANENABLED)
     {
@@ -384,7 +406,7 @@ static void bleMesh_ProcessL2CAPMsg( gapEventHdr_t* pMsg )
 
         if (pRsp->result == L2CAP_CONN_PARAMS_ACCEPTED )
         {
-            printf ("L2CAP Connection Parameter Updated!\r\n");
+            LOG ("L2CAP Connection Parameter Updated!\r\n");
         }
     }
 }
@@ -401,7 +423,7 @@ static void bleMesh_ProcessGAPMsg( gapEventHdr_t* pMsg )
     if ((pMsg->hdr.status != SUCCESS)
             && (pMsg->hdr.status != bleGAPUserCanceled || pMsg->opcode != GAP_DEVICE_DISCOVERY_EVENT))
     {
-//        printf ("GAP Event - %02X, status = %X\r\n", pMsg->opcode, pMsg->hdr.status);
+//        LOG ("GAP Event - %02X, status = %X\r\n", pMsg->opcode, pMsg->hdr.status);
     }
 
     switch (pMsg->opcode)
@@ -426,7 +448,7 @@ static void bleMesh_ProcessGAPMsg( gapEventHdr_t* pMsg )
 
             if (SUCCESS != ret)
             {
-                printf ("GAP_MakeDiscoverable Failed - %d\r\n", ret);
+                LOG ("GAP_MakeDiscoverable Failed - %d\r\n", ret);
             }
             else
             {
@@ -441,8 +463,8 @@ static void bleMesh_ProcessGAPMsg( gapEventHdr_t* pMsg )
         break;
 
     case GAP_END_DISCOVERABLE_DONE_EVENT:
-        //printf ("->%d\r\n", pMsg->opcode);
-        //printf ("ED Status - %d", pMsg->hdr.status);
+        //LOG ("->%d\r\n", pMsg->opcode);
+        //LOG ("ED Status - %d", pMsg->hdr.status);
         osal_stop_timerEx(bleMesh_TaskID, BLEMESH_GAP_MSG_EVT);
 
         if (SUCCESS != pMsg->hdr.status)
@@ -451,7 +473,7 @@ static void bleMesh_ProcessGAPMsg( gapEventHdr_t* pMsg )
 
             if (SUCCESS != ret)
             {
-                printf ("GAP_EndDiscoverable Failed - %d\r\n", ret);
+                LOG ("GAP_EndDiscoverable Failed - %d\r\n", ret);
             }
             else
             {
@@ -472,7 +494,7 @@ static void bleMesh_ProcessGAPMsg( gapEventHdr_t* pMsg )
 
             if ((bleGAPUserCanceled != pMsg->hdr.status) && (SUCCESS != pMsg->hdr.status))
             {
-                printf ("GAP_DeviceDiscoveryCancel Retry - 0x%02X 0x%02X 0x%02X\r\n", pMsg->hdr.status,llState,llSecondaryState);
+                LOG ("GAP_DeviceDiscoveryCancel Retry - 0x%02X 0x%02X 0x%02X\r\n", pMsg->hdr.status,llState,llSecondaryState);
                 GAP_DeviceDiscoveryCancel(bleMesh_TaskID);
                 osal_start_timerEx(bleMesh_TaskID, BLEMESH_GAP_MSG_EVT, 10*1000);
             }
@@ -491,7 +513,7 @@ static void bleMesh_ProcessGAPMsg( gapEventHdr_t* pMsg )
 //            else if(LL_STATUS_ERROR_UNEXPECTED_STATE_ROLE == pMsg->hdr.status)
             else if((LL_STATUS_ERROR_UNEXPECTED_STATE_ROLE == pMsg->hdr.status) || (bleMemAllocError == pMsg->hdr.status) )
             {
-                printf ("GAP_DeviceDiscoveryRequest Retry - 0x%02X\r\n", pMsg->hdr.status);
+                LOG ("GAP_DeviceDiscoveryRequest Retry - 0x%02X\r\n", pMsg->hdr.status);
                 GAP_DeviceDiscoveryRequest(&bleMesh_scanparam);
             }
         }
@@ -508,7 +530,7 @@ static void bleMesh_ProcessGAPMsg( gapEventHdr_t* pMsg )
         osal_stop_timerEx(bleMesh_TaskID, BLEMESH_GAP_MSG_EVT);
         blebrr_timer_stop();
         gapEstLinkReqEvent_t* pPkt = (gapEstLinkReqEvent_t*)pMsg;
-        printf("\r\n GAP_LINK_ESTABLISHED_EVENT received! \r\n");
+        LOG("\r\n GAP_LINK_ESTABLISHED_EVENT received! \r\n");
 
         if ( pPkt->hdr.status == SUCCESS )
         {
@@ -527,7 +549,7 @@ static void bleMesh_ProcessGAPMsg( gapEventHdr_t* pMsg )
     case GAP_LINK_TERMINATED_EVENT:
     {
         gapTerminateLinkEvent_t* pPkt = (gapTerminateLinkEvent_t*)pMsg;
-        /* printf("\r\n GAP_LINK_TERMINATED_EVENT received! \r\n"); */
+        /* LOG("\r\n GAP_LINK_TERMINATED_EVENT received! \r\n"); */
         blebrr_handle_le_disconnection_pl
         (
             0x00, /* Dummy Static Connection Index */
@@ -543,7 +565,7 @@ static void bleMesh_ProcessGAPMsg( gapEventHdr_t* pMsg )
         gapLinkUpdateEvent_t* pPkt = (gapLinkUpdateEvent_t*)pMsg;
         l2capParamUpdateReq_t updateReq;
         uint16 timeout = GAP_GetParamValue( TGAP_CONN_PARAM_TIMEOUT );
-        printf("\r\n GAP_LINK_PARAM_UPDATE_EVENT received! \r\n");
+        LOG("\r\n GAP_LINK_PARAM_UPDATE_EVENT received! \r\n");
         updateReq.intervalMin = 0x28;
         updateReq.intervalMax = 0x38;
         updateReq.slaveLatency = 0;
@@ -750,6 +772,29 @@ void bleMesh_uart_init(void)
         .evt_handler = ProcessUartData,
     };
     hal_uart_init(cfg,UART0);//uart init
+}
+
+void hal_bsp_btn_callback(uint8_t evt)
+{
+    LOG("gpio evt:0x%x  ",evt);
+
+    switch(BSP_BTN_TYPE(evt))
+    {
+    case BSP_BTN_PD_TYPE:
+        /// TODO: turn on/off light
+        break;
+
+    case BSP_BTN_UP_TYPE:
+        break;
+
+    case BSP_BTN_LPK_TYPE:
+        LOG("reset\r\n");
+        cli_demo_reset(0, NULL);
+        break;
+
+    default:
+        break;
+    }
 }
 
 /*********************************************************************
