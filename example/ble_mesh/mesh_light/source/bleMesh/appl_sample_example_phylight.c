@@ -1045,11 +1045,13 @@ void UI_vendor_example_model_state_set(UINT16 state_t, UINT16 state_inst, void* 
         }
         else if (onoff && !lightness) {
             lightness = 255;
+            onoff_changed = 1;
             generic_onoff_set_pl(1);
             LOG("light on\r\n");
         }
         else { // !onoff && lightness
             lightness = 0;
+            onoff_changed = 1;
             generic_onoff_set_pl(0);
             LOG("light off\r\n");
         }
@@ -2515,11 +2517,11 @@ void appl_mesh_sample (void)
         retval = UI_register_foundation_model_servers(element_handle);
     }
 
-    if (API_SUCCESS == retval)
-    {
-        /* Register Generic OnOff model server */
-        retval = UI_register_generic_onoff_model_server(element_handle);
-    }
+    // if (API_SUCCESS == retval)
+    // {
+    //     /* Register Generic OnOff model server */
+    //     retval = UI_register_generic_onoff_model_server(element_handle);
+    // }
 
     #ifdef  USE_HSL
 

@@ -69,12 +69,14 @@
 #include "access_extern.h"
 #include "EXT_cbtimer.h"
 
-#define USE_HSL                 // enable Light HSL server model
+#include "log.h"
+
+#undef USE_HSL                 // enable Light HSL server model
 #undef USE_LIGHTNESS            // enable Light Lightness server model
 #undef  USE_CTL                 // disable Light CTL server model
-#define USE_SCENE               // enable Light Scene server model
+#undef USE_SCENE               // enable Light Scene server model
 #define USE_VENDORMODEL         // enable Light vendormodel server model
-#define  EASY_BOUNDING
+#undef  EASY_BOUNDING
 
 
 //#ifdef USE_VENDORMODEL
@@ -83,7 +85,7 @@
 
 
 /* Console Input/Output */
-#define CONSOLE_OUT(...)    printf(__VA_ARGS__)
+#define CONSOLE_OUT(...)    LOG(__VA_ARGS__)
 #define CONSOLE_IN(...)     scanf(__VA_ARGS__)
 
 void appl_dump_bytes(UCHAR* buffer, UINT16 length);
@@ -2258,7 +2260,7 @@ API_RESULT UI_sample_binding_app_key(void)
         {
             /* Found a Valid App Key */
             /* Keeping the retval as API_SUCCESS */
-            retval=MS_access_bind_model_app(UI_generic_onoff_client_model_handle, handle);
+            //retval=MS_access_bind_model_app(UI_generic_onoff_client_model_handle, handle);
             CONSOLE_OUT("BINDING App Key %04x (%04x %04x)\n",retval,UI_generic_onoff_client_model_handle,handle);
             #ifdef  USE_LIGHTNESS
             retval=MS_access_bind_model_app(UI_generic_lightness_client_model_handle, handle);
@@ -2385,7 +2387,7 @@ void vm_publication_add (UCHAR*             data_parm)
     //printf(
     //"[CONFIG] Model Type: %s. Model ID 0x%08X\n",
     //((MS_ACCESS_MODEL_TYPE_SIG == model_id.type) ? "SIG" : "Vendor"), model_id.id);
-    MS_access_cm_set_model_publication(UI_generic_onoff_client_model_handle,&publish_info);
+    //MS_access_cm_set_model_publication(UI_generic_onoff_client_model_handle,&publish_info);
     #ifdef  USE_LIGHTNESS
     MS_access_cm_set_model_publication(UI_generic_lightness_client_model_handle,&publish_info);
     #endif
@@ -2558,17 +2560,17 @@ void appl_mesh_sample (void)
         retval = UI_register_foundation_model_servers(element_handle);
     }
 
-    if (API_SUCCESS == retval)
-    {
-        /* Register Generic OnOff model client */
-        retval = UI_register_generic_onoff_model_client(element_handle);
-    }
+    // if (API_SUCCESS == retval)
+    // {
+    //     /* Register Generic OnOff model client */
+    //     retval = UI_register_generic_onoff_model_client(element_handle);
+    // }
 
-    if (API_SUCCESS == retval)
-    {
-        /* Register Light HSL model client */
-        retval = UI_register_light_hsl_model_client(element_handle);
-    }
+    // if (API_SUCCESS == retval)
+    // {
+    //     /* Register Light HSL model client */
+    //     retval = UI_register_light_hsl_model_client(element_handle);
+    // }
 
     #ifdef  USE_CTL
 
@@ -2580,11 +2582,11 @@ void appl_mesh_sample (void)
 
     #endif
 
-    if (API_SUCCESS == retval)
-    {
-        /* Register Scene model client */
-        retval = UI_register_scene_model_client(element_handle);
-    }
+    // if (API_SUCCESS == retval)
+    // {
+    //     /* Register Scene model client */
+    //     retval = UI_register_scene_model_client(element_handle);
+    // }
 
     #ifdef  USE_VENDORMODEL
 

@@ -23,7 +23,7 @@ LR_ROM_JT_GC  0x1fff0000 0x00800 {
  } 
 LR_ROM_XIP  0x11017000 0x01e000 {
   ER_ROM_XIP 0x11017000 0x01e000  {  ; load address = execution address
-	libethermind_mesh_models.lib (+RO) 
+	;libethermind_mesh_models.lib (+RO) 
 	libethermind_utils.lib (+RO) 
 	libethermind_mesh_core.lib (+RO)
 	appl_sample_mesh_switch.o(+RO)
@@ -67,9 +67,9 @@ LR_ROM_XIP  0x11017000 0x01e000 {
 	cry.o(+RO)
 	aes-ccm.o(+RO)
 	aes.o(+RO)
-	kscan.o(+RO)
-	hal_keyboard_matrix.o(+RO)
-	donglekey.o(+RO)
+	;kscan.o(+RO)
+	;hal_keyboard_matrix.o(+RO)
+	;donglekey.o(+RO)
 	*.o(_section_xip_code_)
   }
  }  

@@ -77,12 +77,15 @@
 
 /* Application */
 #include "bleMesh.h"
+
+/* Button */
+#include "bsp_button_task.h"
+
 /* Timer */
 #if defined ( EM_USE_EXT_TIMER )
     #include "cbTimer.h"
     #include "EXT_cbtimer.h"
 #endif
-#include "hal_keyboard_matrix.h"
 
 /*********************************************************************
     GLOBAL VARIABLES
@@ -106,9 +109,8 @@ const pTaskEventHandlerFn tasksArr[] =
 //    GAPRole_ProcessEvent,                                             // task 6   ===> HZF
     GATTServApp_ProcessEvent,                                         // task 6
 
-
-    hal_keyboard_matrix_task_ProcessEvent,
-    bleMesh_ProcessEvent,                                              // task 8
+    bleMesh_ProcessEvent,                                             // task 7
+    Bsp_Btn_ProcessEvent,                                             // task 8
     #if defined ( OSAL_CBTIMER_NUM_TASKS )
     OSAL_CBTIMER_PROCESS_EVENT( osal_CbTimerProcessEvent ),
     #endif
@@ -165,9 +167,10 @@ void osalInitTasks( void )
 //    GAPRole_Init( taskID++ );
     /* Profiles */
     GATTServApp_Init( taskID++ );
-    hal_keyboard_matrix_task_init(taskID++);
     /* Application */
     bleMesh_Init( taskID++ );
+    /* Button */
+    Bsp_Btn_Init( taskID++ );
     #if defined ( OSAL_CBTIMER_NUM_TASKS )
     /* Callback Timer Tasks */
     osal_CbTimerInit( taskID );

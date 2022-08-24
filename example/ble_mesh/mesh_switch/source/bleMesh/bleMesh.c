@@ -85,9 +85,15 @@
 
 #include "mesh_clients.h"
 
-#include "dongleKey.h"
-#include "hal_keyboard_matrix.h"
 #include "cli_model.h"
+
+#include "bsp_button.h"
+#include "bsp_button_task.h"
+#include "bsp_gpio.h"
+
+#include "access_extern.h"
+
+#include "vendormodel_common.h"
 
 extern void appl_mesh_sample (void);
 extern void appl_dump_bytes(UCHAR* buffer, UINT16 length);
@@ -120,13 +126,11 @@ UINT16 bleMesh_pdu_time;
     EXTERNAL VARIABLES
 */
 extern PROV_DEVICE_S UI_lprov_device;
-extern  key_contex_t key_state;
-extern Keys_message KeyCode;
 extern uint8 enable_sleep_flag;
 extern UCHAR blebrr_sleep;
 extern EM_timer_handle thandle;
 
-
+extern MS_ACCESS_MODEL_HANDLE UI_vendor_defined_client_model_handle;
 
 /*********************************************************************
     EXTERNAL FUNCTIONS
@@ -151,6 +155,7 @@ void bleMesh_key_process(uint8 key,MS_NET_ADDR* pub_addr);
 void bleMesh_GAPMsg_Timeout_Process(void);
 extern void UI_vendor_model_set(UCHAR test_len,UINT16 test_index);
 
+void hal_bsp_btn_callback(uint8_t evt);
 
 /*********************************************************************
     LOCAL VARIABLES
@@ -224,6 +229,14 @@ DECL_CONST CLI_COMMAND cli_cmd_list[] =
     { "status", "internal status", cli_internal_status }
 };
 
+BTN_T usr_sum_btn_array[BSP_TOTAL_BTN_NUM];
+
+Gpio_Btn_Info gpio_btn_info =
+{
+    {P15},
+    hal_bsp_btn_callback,
+};
+
 /*********************************************************************
     LOCAL FUNCTIONS
 */
@@ -285,6 +298,15 @@ void bleMesh_Init( uint8 task_id )
     // HCI_LE_SetDefaultPhyMode(0, 0, 0x01, 0x01);
     hal_pwrmgr_register(MOD_USR1, NULL, NULL);
     hal_pwrmgr_lock(MOD_USR1);
+
+    if(PPlus_SUCCESS == hal_gpio_btn_init(&gpio_btn_info))
+    {
+        bsp_btn_gpio_flag = TRUE;
+    }
+    else
+    {
+        LOG("hal_gpio_btn_init error:%d\n",__LINE__);
+    }
 }
 
 
@@ -389,103 +411,6 @@ uint16 bleMesh_ProcessEvent( uint8 task_id, uint16 events )
     {
         bleMesh_GAPMsg_Timeout_Process();
         return (events ^ BLEMESH_GAP_MSG_EVT);
-    }
-
-    if (events & BLEMESH_KEY_PRESS_PRO_EVT)
-    {
-        for (uint8 i = 0; i < KEY_NUM; ++i)
-        {
-            if ((key_state.in_enable[i]==TRUE)||
-                    (key_state.state[i]==STATE_KEY_RELEASE_DEBONCE))
-            {
-                gpio_key_timer_handler(i);
-            }
-        }
-
-        return (events ^ BLEMESH_KEY_PRESS_PRO_EVT);
-    }
-
-    if (events & BLEMESH_HAL_KEY_MATRIX_EVT)
-    {
-        hal_pwrmgr_lock(MOD_USR1);
-        #ifdef BLEBRR_LP_SUPPORT
-
-        if(enable_sleep_flag == 1)
-        {
-            enable_sleep_flag = 0;
-            printf("BLEMESH_HAL_KEY_MATRIX_EVT\n");
-            blebrr_wakeup_handler();
-            osal_start_timerEx(bleMesh_TaskID, BLEMESH_APPL_IDLE_EVT, 60*1000);
-        }
-
-        #endif
-        MS_NET_ADDR pub_addr;
-        bleMesh_key_process(KeyCode.key,&pub_addr);
-        uint8 row_index = (KeyCode.key-1)>>2;
-        uint8 col_index = (KeyCode.key-1) & 0x03;
-
-        if(row_index == 0)
-        {
-            if(col_index == 0)
-            {
-                UI_generic_onoff_client_set(pub_addr,(g_counter1_on_off++)&0x01);
-            }
-            else if(col_index == 1)
-            {
-                UI_generic_onoff_client_set(pub_addr,(g_counter2_on_off++)&0x01);
-            }
-            else if(col_index == 2)
-            {
-                UI_generic_onoff_client_set(pub_addr,(g_counter3_on_off++)&0x01);
-            }
-            else if(col_index == 3)
-            {
-                UI_generic_onoff_client_set(pub_addr,(g_counter4_on_off++)&0x01);
-            }
-        }
-        else if(row_index == 1)
-        {
-            UI_light_hsl_client_set(pub_addr,0x7fff,0x0000,0xffff);
-        }
-        else if(row_index == 2)
-        {
-            UI_light_hsl_client_set(pub_addr,0x7fff,0x5555,0xffff);
-        }
-        else if(row_index == 3)
-        {
-            UI_light_hsl_client_set(pub_addr,0x7fff,0xaaaa,0xffff);
-        }
-
-        return (events ^ BLEMESH_HAL_KEY_MATRIX_EVT);
-    }
-
-    if (events & BLEMESH_PDU_TX_OVERRUN)
-    {
-        if(((KeyCode.key-1) & 0x03)==0)
-        {
-            UI_vendor_model_set(0,bleMesh_pdu_time);
-        }
-        else if(((KeyCode.key-1) & 0x03)==1)
-        {
-            UI_vendor_model_set(8,bleMesh_pdu_time);
-        }
-        else if(((KeyCode.key-1) & 0x03)==2)
-        {
-            UI_vendor_model_set(21,bleMesh_pdu_time);
-        }
-        else if(((KeyCode.key-1) & 0x03)==3)
-        {
-            UI_vendor_model_set(29,bleMesh_pdu_time);
-        }
-
-        if(bleMesh_pdu_time == 99)
-        {
-            bleMesh_pdu_time = 0;
-            osal_stop_timerEx(bleMesh_TaskID, BLEMESH_PDU_TX_OVERRUN);
-        }
-
-        bleMesh_pdu_time++;
-        return (events ^ BLEMESH_PDU_TX_OVERRUN);
     }
 
     if ( events & BLEMESH_PROV_COMP_EVT )
@@ -986,7 +911,63 @@ void bleMesh_key_process(uint8 key,MS_NET_ADDR* pub_addr)
     printf("addr %04X\n",addr);
 }
 
+void hal_bsp_btn_callback(uint8_t evt)
+{
+    LOG("gpio evt:0x%x  ",evt);
 
+    switch(BSP_BTN_TYPE(evt))
+    {
+    case BSP_BTN_PD_TYPE:
+    {
+        UCHAR buffer[20];
+        UINT16 marker = 0;
+        buffer[marker] = ++vendor_tid;
+        marker++;
+        MS_PACK_LE_2_BYTE_VAL(&buffer[marker], MS_STATE_VENDORMODEL_ONOFF_T);
+        marker += 2;
+        buffer[marker] = 1;
+        marker++;
+        MS_access_raw_data(
+            &UI_vendor_defined_client_model_handle,
+            MS_ACCESS_VENDORMODEL_SET_OPCODE,
+            0xffff,
+            0x0000,
+            buffer,
+            marker,
+            MS_FALSE);
+    }
+    break;
+
+    case BSP_BTN_UP_TYPE:
+    {
+        UCHAR buffer[20];
+        UINT16 marker = 0;
+        buffer[marker] = ++vendor_tid;
+        marker++;
+        MS_PACK_LE_2_BYTE_VAL(&buffer[marker], MS_STATE_VENDORMODEL_ONOFF_T);
+        marker += 2;
+        buffer[marker] = 0;
+        marker++;
+        MS_access_raw_data(
+            &UI_vendor_defined_client_model_handle,
+            MS_ACCESS_VENDORMODEL_SET_OPCODE,
+            0xffff,
+            0x0000,
+            buffer,
+            marker,
+            MS_FALSE);
+    }
+    break;
+
+    case BSP_BTN_LPK_TYPE:
+        LOG("reset\r\n");
+        cli_demo_reset(0, NULL);
+        break;
+
+    default:
+        break;
+    }
+}
 
 /*********************************************************************
 *********************************************************************/
