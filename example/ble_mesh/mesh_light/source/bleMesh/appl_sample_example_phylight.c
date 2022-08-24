@@ -1258,7 +1258,14 @@ API_RESULT UI_phy_model_server_cb
             marker += 2;
             buffer[marker] = onoff;
             marker++;
-            MS_access_publish(&ctx->handle, MS_ACCESS_VENDORMODEL_STATUS_OPCODE, buffer, marker, 1);
+            MS_access_raw_data(
+                &UI_vendor_defined_server_model_handle,
+                MS_ACCESS_VENDORMODEL_STATUS_OPCODE,
+                0x0001,
+                0x0000,
+                buffer,
+                marker,
+                MS_FALSE);
             onoff_changed = 0;
         }
 
@@ -1271,7 +1278,14 @@ API_RESULT UI_phy_model_server_cb
             marker += 2;
             buffer[marker] = lightness;
             marker++;
-            MS_access_publish(&ctx->handle, MS_ACCESS_VENDORMODEL_STATUS_OPCODE, buffer, marker, 1);
+            MS_access_raw_data(
+                &UI_vendor_defined_server_model_handle,
+                MS_ACCESS_VENDORMODEL_STATUS_OPCODE,
+                0x0001,
+                0x0000,
+                buffer,
+                marker,
+                MS_FALSE);
             lightness_changed = 0;
         }
     }

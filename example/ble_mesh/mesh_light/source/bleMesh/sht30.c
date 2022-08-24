@@ -225,10 +225,14 @@ uint16 sht30_ProcessEvent(uint8 task_id, uint16 events)
                     marker += 2;
                     EM_mem_copy(&buffer[marker], sensor_data, sizeof sensor_data);
                     marker += sizeof sensor_data;
-                    MS_access_publish(
+                    MS_access_raw_data(
                         &UI_vendor_defined_server_model_handle,
                         MS_ACCESS_VENDORMODEL_STATUS_OPCODE,
-                        buffer, marker, 1);
+                        0x0001,
+                        0x0000,
+                        buffer,
+                        marker,
+                        MS_FALSE);
 
                     //LOG("publish sensor data ");
                     //LOG_DUMP_BYTE(sensor_data, sizeof sensor_data);
