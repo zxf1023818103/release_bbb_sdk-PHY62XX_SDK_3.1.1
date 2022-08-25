@@ -923,8 +923,8 @@ void hal_bsp_btn_callback(uint8_t evt)
         UINT16 marker = 0;
         buffer[marker] = ++vendor_tid;
         marker++;
-        MS_PACK_LE_2_BYTE_VAL(&buffer[marker], MS_STATE_VENDORMODEL_ONOFF_T);
-        marker += 2;
+        buffer[marker] = MS_STATE_VENDORMODEL_ONOFF_T;
+        marker++;
         buffer[marker] = 1;
         marker++;
         MS_access_raw_data(
@@ -944,8 +944,8 @@ void hal_bsp_btn_callback(uint8_t evt)
         UINT16 marker = 0;
         buffer[marker] = ++vendor_tid;
         marker++;
-        MS_PACK_LE_2_BYTE_VAL(&buffer[marker], MS_STATE_VENDORMODEL_ONOFF_T);
-        marker += 2;
+        buffer[marker] = MS_STATE_VENDORMODEL_ONOFF_T;
+        marker++;
         buffer[marker] = 0;
         marker++;
         MS_access_raw_data(

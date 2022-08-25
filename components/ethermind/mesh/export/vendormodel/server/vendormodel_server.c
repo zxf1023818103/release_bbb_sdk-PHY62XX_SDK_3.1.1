@@ -76,8 +76,8 @@ __ATTR_SECTION_XIP__ API_RESULT MS_vendormodel_server_state_update
 
     buffer[marker] = ++vendor_tid;
     marker++;
-    MS_PACK_LE_2_BYTE_VAL(&buffer[marker], current_state_params->vendormodel_type);
-    marker += 2;
+    buffer[marker] = current_state_params->vendormodel_type;
+    marker++;
     opcode = MS_ACCESS_VENDORMODEL_STATUS_OPCODE;
 
     switch (current_state_params->vendormodel_type)

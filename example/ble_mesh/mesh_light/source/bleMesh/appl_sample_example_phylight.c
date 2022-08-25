@@ -1256,8 +1256,8 @@ API_RESULT UI_phy_model_server_cb
             UINT16 marker = 0;
             buffer[marker] = ++vendor_tid;
             marker++;
-            MS_PACK_LE_2_BYTE_VAL(&buffer[marker], MS_STATE_VENDORMODEL_ONOFF_T);
-            marker += 2;
+            buffer[marker] = MS_STATE_VENDORMODEL_ONOFF_T;
+            marker++;
             buffer[marker] = onoff;
             marker++;
             MS_access_raw_data(
@@ -1276,8 +1276,8 @@ API_RESULT UI_phy_model_server_cb
             UINT16 marker = 0;
             buffer[marker] = ++vendor_tid;
             marker++;
-            MS_PACK_LE_2_BYTE_VAL(&buffer[marker], MS_STATE_VENDORMODEL_LIGHTNESS_T);
-            marker += 2;
+            buffer[marker] = MS_STATE_VENDORMODEL_LIGHTNESS_T;
+            marker++;
             buffer[marker] = lightness;
             marker++;
             MS_access_raw_data(
