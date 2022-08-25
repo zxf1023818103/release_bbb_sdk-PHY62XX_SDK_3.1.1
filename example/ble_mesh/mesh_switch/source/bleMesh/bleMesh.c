@@ -959,10 +959,10 @@ void hal_bsp_btn_callback(uint8_t evt)
     }
     break;
 
-    case BSP_BTN_LPK_TYPE:
-        LOG("reset\r\n");
-        cli_demo_reset(0, NULL);
-        break;
+    // case BSP_BTN_LPK_TYPE:
+    //     LOG("reset\r\n");
+    //     cli_demo_reset(0, NULL);
+    //     break;
 
     default:
         break;
