@@ -150,7 +150,7 @@ uint16 sht30_ProcessEvent(uint8 task_id, uint16 events)
         pi2cdev = hal_i2c_init(I2C_0, I2C_CLOCK_100K);
 
         write_command(SHT31_MEAS_HIGHREP);
-        osal_start_timerEx(sht30_TaskID, SHT30_DATA_RECEIVE_EVT, 500);
+        osal_start_timerEx(sht30_TaskID, SHT30_DATA_RECEIVE_EVT, 3000);
     }
 
     if (events & SHT30_DATA_RECEIVE_EVT)
@@ -168,7 +168,7 @@ uint16 sht30_ProcessEvent(uint8 task_id, uint16 events)
         {
             // LOG("received data:");
             // LOG_DUMP_BYTE(buffer, sizeof buffer);
-
+            
             do
             {
                 uint16 ST, SRH;
@@ -221,8 +221,8 @@ uint16 sht30_ProcessEvent(uint8 task_id, uint16 events)
                     UINT16 marker = 0;
                     buffer[marker] = ++vendor_tid;
                     marker++;
-                    buffer[marker] = MS_STATE_VENDORMODEL_SENSOR_T;
-                    marker++;
+					MS_PACK_LE_2_BYTE_VAL(&buffer[marker], MS_STATE_VENDORMODEL_SENSOR_T);
+                    marker += 2;
                     EM_mem_copy(&buffer[marker], sensor_data, sizeof sensor_data);
                     marker += sizeof sensor_data;
                     MS_access_raw_data(

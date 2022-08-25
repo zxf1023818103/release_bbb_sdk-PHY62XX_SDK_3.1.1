@@ -73,13 +73,13 @@
 #include "sht30.h"
 
 
-#undef USE_HEALTH            // enable Light Lightness server model
-#undef USE_HSL                 // enable Light HSL server model
-#undef USE_LIGHTNESS            // enable Light Lightness server model
-#undef  USE_CTL                 // disable Light CTL server model
-#undef USE_SCENE               // enable Light Scene server model
+#define USE_HEALTH            // enable Light Lightness server model
+#define USE_HSL                 // enable Light HSL server model
+#define USE_LIGHTNESS            // enable Light Lightness server model
+#define USE_CTL                 // disable Light CTL server model
+#define USE_SCENE               // enable Light Scene server model
 #define USE_VENDORMODEL         // enable Light vendormodel server model
-#undef  EASY_BOUNDING
+#define EASY_BOUNDING
 
 /* Console Input/Output */
 #define CONSOLE_OUT(...)    LOG(__VA_ARGS__)
@@ -1256,8 +1256,8 @@ API_RESULT UI_phy_model_server_cb
             UINT16 marker = 0;
             buffer[marker] = ++vendor_tid;
             marker++;
-            buffer[marker] = MS_STATE_VENDORMODEL_ONOFF_T;
-            marker++;
+            MS_PACK_LE_2_BYTE_VAL(&buffer[marker], MS_STATE_VENDORMODEL_ONOFF_T);
+            marker += 2;
             buffer[marker] = onoff;
             marker++;
             MS_access_raw_data(
@@ -1276,8 +1276,8 @@ API_RESULT UI_phy_model_server_cb
             UINT16 marker = 0;
             buffer[marker] = ++vendor_tid;
             marker++;
-            buffer[marker] = MS_STATE_VENDORMODEL_LIGHTNESS_T;
-            marker++;
+            MS_PACK_LE_2_BYTE_VAL(&buffer[marker], MS_STATE_VENDORMODEL_LIGHTNESS_T);
+            marker += 2;
             buffer[marker] = lightness;
             marker++;
             MS_access_raw_data(

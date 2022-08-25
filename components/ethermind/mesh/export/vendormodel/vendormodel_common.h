@@ -1,4 +1,4 @@
-﻿/**
+/**
     \file appl_config_client.h
 
     \brief This file defines the Mesh Configuration Model Application Interface
@@ -31,27 +31,28 @@
 // #define MS_STATE_VENDORMODEL_MODENUMBER_T                              0xF004
 // #define MS_STATE_VENDORMODEL_EVENT_INDICATE_T                          0xF009
 #define MS_STATE_VENDORMODEL_NOTIFY_T                                  0xFFFE
-#define MS_STATE_VENDORMODEL_HEARTBEAT_T                               0x00u
-#define MS_STATE_VENDORMODEL_ONOFF_T                                   0x01u
-#define MS_STATE_VENDORMODEL_LIGHTNESS_T                               0x02u
-#define MS_STATE_VENDORMODEL_RGB_T                                     0x03u
-#define MS_STATE_VENDORMODEL_SENSOR_T                                  0x04u
-#define MS_STATE_VENDORMODEL_RESET_T                                   0x09u
+#define MS_STATE_VENDORMODEL_HEARTBEAT_T                               0x0000
+#define MS_STATE_VENDORMODEL_ONOFF_T                                   0x0100
+#define MS_STATE_VENDORMODEL_LIGHTNESS_T                               0x0200
+#define MS_STATE_VENDORMODEL_RGB_T                                     0x0300
+#define MS_STATE_VENDORMODEL_SENSOR_T                                  0x0400
+#define MS_STATE_VENDORMODEL_IRBODY_T                                  0x0500
+#define MS_STATE_VENDORMODEL_RESET_T                                   0x0900
 
 
 
 //phy model opcode
-#define MS_ACCESS_VENDORMODEL_GET_OPCODE                               0x00D00405
-#define MS_ACCESS_VENDORMODEL_SET_OPCODE                               0x00D10405
-#define MS_ACCESS_VENDORMODEL_SET_UNACKNOWLEDGED_OPCODE                0x00D20405
-#define MS_ACCESS_VENDORMODEL_STATUS_OPCODE                            0x00D30405
-#define MS_ACCESS_VENDORMODEL_INDICATION_OPCODE                        0x00D40405
-#define MS_ACCESS_VENDORMODEL_CONFIRMATION_OPCODE                      0x00D50405
-#define MS_ACCESS_VENDORMODEL_WRITECMD_OPCODE                          0x00E00405
-#define MS_ACCESS_VENDORMODEL_NOTIFY_OPCODE                            0x00E10405
+#define MS_ACCESS_VENDORMODEL_GET_OPCODE                               0x00D08888//0405
+#define MS_ACCESS_VENDORMODEL_SET_OPCODE                               0x00D18888//0405
+#define MS_ACCESS_VENDORMODEL_SET_UNACKNOWLEDGED_OPCODE                0x00D28888//0405
+#define MS_ACCESS_VENDORMODEL_STATUS_OPCODE                            0x00D38888//0405
+#define MS_ACCESS_VENDORMODEL_INDICATION_OPCODE                        0x00D48888//0405
+#define MS_ACCESS_VENDORMODEL_CONFIRMATION_OPCODE                      0x00D58888//0405
+#define MS_ACCESS_VENDORMODEL_WRITECMD_OPCODE                          0x00E08888//0405
+#define MS_ACCESS_VENDORMODEL_NOTIFY_OPCODE                            0x00E18888//0405
 
-#define MS_MODEL_ID_VENDORMODEL_SERVER                                 0x00000504
-#define MS_MODEL_ID_VENDORMODEL_CLIENT                                 0x00010504
+#define MS_MODEL_ID_VENDORMODEL_SERVER                                 0x00008888//0504
+#define MS_MODEL_ID_VENDORMODEL_CLIENT                                 0x00018888//0504
 
 
 

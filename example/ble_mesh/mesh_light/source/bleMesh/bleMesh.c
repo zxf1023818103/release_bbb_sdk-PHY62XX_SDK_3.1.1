@@ -111,7 +111,7 @@
     EXTERNAL VARIABLES
 */
 
-
+extern MS_ACCESS_MODEL_HANDLE  UI_vendor_defined_server_model_handle;
 
 /*********************************************************************
     EXTERNAL FUNCTIONS
@@ -137,6 +137,7 @@ static void bleMesh_ProcessL2CAPMsg( gapEventHdr_t* pMsg );
 static void bleMesh_ProcessGATTMsg( gattMsgEvent_t* pMsg );
 void bleMesh_uart_init(void);
 void hal_bsp_btn_callback(uint8_t evt);
+void bleMesh_PIRmsg_Timeout_Process(void);
 
 /*********************************************************************
     LOCAL VARIABLES
@@ -343,6 +344,11 @@ uint16 bleMesh_ProcessEvent( uint8 task_id, uint16 events )
         return (events ^ BLEMESH_GAP_MSG_EVT);
     }
 
+	if (events & BLEMESH_PIR_BODY_EVT)
+	{
+		bleMesh_PIRmsg_Timeout_Process();
+		return (events ^ BLEMESH_PIR_BODY_EVT);
+	}
     // Discard unknown events
     return 0;
 }
@@ -781,20 +787,57 @@ void hal_bsp_btn_callback(uint8_t evt)
     switch(BSP_BTN_TYPE(evt))
     {
     case BSP_BTN_PD_TYPE:
-        /// TODO: turn on/off light
-        break;
+    {
+		UCHAR buffer[20];
+        UINT16 marker = 0;
+        buffer[marker] = ++vendor_tid;
+        marker++;
+		MS_PACK_LE_2_BYTE_VAL(&buffer[marker], MS_STATE_VENDORMODEL_IRBODY_T);
+        marker += 2;
+		buffer[marker] = 0x01;
+        marker++;
+        MS_access_raw_data(
+            &UI_vendor_defined_server_model_handle,
+            MS_ACCESS_VENDORMODEL_STATUS_OPCODE,
+            0x0001,
+            0x0000,
+            buffer,
+            marker,
+            MS_FALSE); //上报有人状态信息给网关
+	    LOG("find a boy\r\n"); 
+    }
+    break;
 
     case BSP_BTN_UP_TYPE:
-        break;
-
-    case BSP_BTN_LPK_TYPE:
-        LOG("reset\r\n");
-        cli_demo_reset(0, NULL);
-        break;
+    {
+	    UCHAR buffer[20];
+        UINT16 marker = 0;
+        buffer[marker] = ++vendor_tid;
+        marker++;
+        MS_PACK_LE_2_BYTE_VAL(&buffer[marker], MS_STATE_VENDORMODEL_IRBODY_T);
+        marker += 2;
+        buffer[marker] = 0x00;
+        marker++;
+        MS_access_raw_data(
+            &UI_vendor_defined_server_model_handle,
+            MS_ACCESS_VENDORMODEL_STATUS_OPCODE,
+            0x0001,
+            0x0000,
+            buffer,
+            marker,
+            MS_FALSE); //上报无人状态信息给网关
+		LOG("no body\r\n");
+    }
+    break;
 
     default:
-        break;
+       break;
     }
+}
+
+void bleMesh_PIRmsg_Timeout_Process(void)
+{
+
 }
 
 /*********************************************************************
