@@ -221,7 +221,7 @@ uint16 sht30_ProcessEvent(uint8 task_id, uint16 events)
                     UINT16 marker = 0;
                     buffer[marker] = ++vendor_tid;
                     marker++;
-                    buffer[marker] = MS_STATE_VENDORMODEL_ONOFF_T;
+                    buffer[marker] = MS_STATE_VENDORMODEL_SENSOR_T;
                     marker++;
                     EM_mem_copy(&buffer[marker], sensor_data, sizeof sensor_data);
                     marker += sizeof sensor_data;
