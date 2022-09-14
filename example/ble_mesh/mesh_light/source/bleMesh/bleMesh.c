@@ -87,10 +87,6 @@
 #include "cli_model.h"
 #include "flash.h"
 
-#include "bsp_button.h"
-#include "bsp_button_task.h"
-#include "bsp_gpio.h"
-
 /*********************************************************************
     MACROS
 */
@@ -111,7 +107,7 @@
     EXTERNAL VARIABLES
 */
 
-extern MS_ACCESS_MODEL_HANDLE  UI_vendor_defined_server_model_handle;
+
 
 /*********************************************************************
     EXTERNAL FUNCTIONS
@@ -136,8 +132,6 @@ static void bleMesh_ProcessGAPMsg( gapEventHdr_t* pMsg );
 static void bleMesh_ProcessL2CAPMsg( gapEventHdr_t* pMsg );
 static void bleMesh_ProcessGATTMsg( gattMsgEvent_t* pMsg );
 void bleMesh_uart_init(void);
-void hal_bsp_btn_callback(uint8_t evt);
-void bleMesh_PIRmsg_Timeout_Process(void);
 
 /*********************************************************************
     LOCAL VARIABLES
@@ -177,14 +171,6 @@ UCHAR cmdlen;
 //     /*get information */
 //     { "ATMSH81", "get information", cli_get_information }
 // };
-
-BTN_T usr_sum_btn_array[BSP_TOTAL_BTN_NUM];
-
-Gpio_Btn_Info gpio_btn_info =
-{
-    {P15},
-    hal_bsp_btn_callback,
-};
 
 /*********************************************************************
     PROFILE CALLBACKS
@@ -234,14 +220,10 @@ void bleMesh_Init( uint8 task_id )
 //    HCI_LE_SetDefaultPhyMode(0, 0, 0x01, 0x01);
     hal_pwrmgr_lock(MOD_USR1);
 
-    if(PPlus_SUCCESS == hal_gpio_btn_init(&gpio_btn_info))
-    {
-        bsp_btn_gpio_flag = TRUE;
-    }
-    else
-    {
-        LOG("hal_gpio_btn_init error:%d\n",__LINE__);
-    }
+    hal_gpio_pin_init(P15, GPIO_INPUT);
+    hal_gpio_pull_set(P15, GPIO_PULL_DOWN);
+
+    osal_start_reload_timer(bleMesh_TaskID, BLEMESH_PIR_BODY_EVT, 500);
 }
 
 
@@ -270,6 +252,7 @@ void bleMesh_Init( uint8 task_id )
     #define GPIO_RED      P2
 #endif
 static gpio_pin_e led_pins[3] = {GPIO_GREEN,GPIO_BLUE,GPIO_RED};
+extern MS_ACCESS_MODEL_HANDLE  UI_vendor_defined_server_model_handle;
 uint16 bleMesh_ProcessEvent( uint8 task_id, uint16 events )
 {
     VOID task_id; // OSAL required parameter that isn't used in this function
@@ -344,11 +327,53 @@ uint16 bleMesh_ProcessEvent( uint8 task_id, uint16 events )
         return (events ^ BLEMESH_GAP_MSG_EVT);
     }
 
-	if (events & BLEMESH_PIR_BODY_EVT)
-	{
-		bleMesh_PIRmsg_Timeout_Process();
-		return (events ^ BLEMESH_PIR_BODY_EVT);
-	}
+    if (events & BLEMESH_PIR_BODY_EVT)
+    {
+        static bool last_status;
+        bool status = hal_gpio_read(P15);
+        // if (last_status != status) {
+            if (status) {
+                UCHAR buffer[20];
+                UINT16 marker = 0;
+                buffer[marker] = ++vendor_tid;
+                marker++;
+		        MS_PACK_LE_2_BYTE_VAL(&buffer[marker], MS_STATE_VENDORMODEL_IRBODY_T);
+                marker += 2;
+		        buffer[marker] = 0x01;
+                marker++;
+                MS_access_raw_data(
+                    &UI_vendor_defined_server_model_handle,
+                    MS_ACCESS_VENDORMODEL_STATUS_OPCODE,
+                    0x0001,
+                    0x0000,
+                    buffer,
+                    marker,
+                    MS_FALSE); //上报有人状态信息给网关
+	            LOG("find a boy\r\n"); 
+            }
+            else {
+                UCHAR buffer[20];
+                UINT16 marker = 0;
+                buffer[marker] = ++vendor_tid;
+                marker++;
+                MS_PACK_LE_2_BYTE_VAL(&buffer[marker], MS_STATE_VENDORMODEL_IRBODY_T);
+                marker += 2;
+                buffer[marker] = 0x00;
+                marker++;
+                MS_access_raw_data(
+                    &UI_vendor_defined_server_model_handle,
+                    MS_ACCESS_VENDORMODEL_STATUS_OPCODE,
+                    0x0001,
+                    0x0000,
+                    buffer,
+                    marker,
+                    MS_FALSE);//上报无人状态信息给网关
+		        LOG("no body\r\n");
+            }
+        // }
+        last_status = status;
+        return (events ^ BLEMESH_PIR_BODY_EVT);
+    }
     // Discard unknown events
     return 0;
 }
@@ -780,65 +805,6 @@ void bleMesh_uart_init(void)
     hal_uart_init(cfg,UART0);//uart init
 }
 
-void hal_bsp_btn_callback(uint8_t evt)
-{
-    LOG("gpio evt:0x%x  ",evt);
-
-    switch(BSP_BTN_TYPE(evt))
-    {
-    case BSP_BTN_PD_TYPE:
-    {
-		UCHAR buffer[20];
-        UINT16 marker = 0;
-        buffer[marker] = ++vendor_tid;
-        marker++;
-		MS_PACK_LE_2_BYTE_VAL(&buffer[marker], MS_STATE_VENDORMODEL_IRBODY_T);
-        marker += 2;
-		buffer[marker] = 0x01;
-        marker++;
-        MS_access_raw_data(
-            &UI_vendor_defined_server_model_handle,
-            MS_ACCESS_VENDORMODEL_STATUS_OPCODE,
-            0x0001,
-            0x0000,
-            buffer,
-            marker,
-            MS_FALSE); //上报有人状态信息给网关
-	    LOG("find a boy\r\n"); 
-    }
-    break;
-
-    case BSP_BTN_UP_TYPE:
-    {
-	    UCHAR buffer[20];
-        UINT16 marker = 0;
-        buffer[marker] = ++vendor_tid;
-        marker++;
-        MS_PACK_LE_2_BYTE_VAL(&buffer[marker], MS_STATE_VENDORMODEL_IRBODY_T);
-        marker += 2;
-        buffer[marker] = 0x00;
-        marker++;
-        MS_access_raw_data(
-            &UI_vendor_defined_server_model_handle,
-            MS_ACCESS_VENDORMODEL_STATUS_OPCODE,
-            0x0001,
-            0x0000,
-            buffer,
-            marker,
-            MS_FALSE); //上报无人状态信息给网关
-		LOG("no body\r\n");
-    }
-    break;
-
-    default:
-       break;
-    }
-}
-
-void bleMesh_PIRmsg_Timeout_Process(void)
-{
-
-}
 
 /*********************************************************************
 *********************************************************************/
