@@ -121,8 +121,8 @@ void sht30_Init(uint8 task_id)
 {
     sht30_TaskID = task_id;
 
-    hal_gpio_pull_set(P16, GPIO_PULL_DOWN);
-    hal_gpio_write(P16, 1);
+    hal_gpio_pull_set(P20, GPIO_PULL_DOWN);
+    hal_gpio_write(P20, 1);
 
     osal_set_event(sht30_TaskID, SHT30_SEND_READ_EVT);
 }
@@ -134,19 +134,19 @@ uint16 sht30_ProcessEvent(uint8 task_id, uint16 events)
     if (events & SHT30_RST_PULL_DOWN_EVT)
     {
 
-        hal_gpio_fast_write(P16, 0);
+        hal_gpio_fast_write(P20, 0);
         osal_start_timerEx(sht30_TaskID, SHT30_RST_PULL_UP_EVT, 300);
     }
 
     if (events & SHT30_RST_PULL_UP_EVT)
     {
-        hal_gpio_fast_write(P16, 1);
+        hal_gpio_fast_write(P20, 1);
         osal_start_timerEx(sht30_TaskID, SHT30_SEND_READ_EVT, 300);
     }
 
     if (events & SHT30_SEND_READ_EVT)
     {
-        hal_i2c_pin_init(I2C_0, P2, P3);
+        hal_i2c_pin_init(I2C_0, P24, P23);
         pi2cdev = hal_i2c_init(I2C_0, I2C_CLOCK_100K);
 
         write_command(SHT31_MEAS_HIGHREP);
@@ -234,8 +234,8 @@ uint16 sht30_ProcessEvent(uint8 task_id, uint16 events)
                         marker,
                         MS_FALSE);
 
-                    //LOG("publish sensor data ");
-                    //LOG_DUMP_BYTE(sensor_data, sizeof sensor_data);
+                    // LOG("publish sensor data ");
+                    // LOG_DUMP_BYTE(sensor_data, sizeof sensor_data);
                 }
 
                 EM_mem_copy(sht30_sensor_data, sensor_data, sizeof sensor_data);
