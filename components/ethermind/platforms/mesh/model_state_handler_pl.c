@@ -38,18 +38,16 @@ void mesh_model_device_provisioned_ind_pl(void)
 
 void generic_onoff_set_pl (UINT8 state)
 {
+    hal_gpio_pin_init(P34, GPIO_OUTPUT);
+    hal_gpio_pull_set(P34, GPIO_PULL_UP_S);
     /* LED ON/OFF for GENERIC ONOFF to be mapped here */
     if (state)
     {
-        light_ctrl(LIGHT_RED, LIGHT_TOP_VALUE-1);
-        light_ctrl(LIGHT_GREEN, LIGHT_TOP_VALUE-1);
-        light_ctrl(LIGHT_BLUE, LIGHT_TOP_VALUE-1);
+        hal_gpio_write(P34, 0);
     }
     else
     {
-        light_ctrl(LIGHT_RED, 0);
-        light_ctrl(LIGHT_GREEN, 0);
-        light_ctrl(LIGHT_BLUE, 0);
+        hal_gpio_write(P34, 1);
     }
 }
 

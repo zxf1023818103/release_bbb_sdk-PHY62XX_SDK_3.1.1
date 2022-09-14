@@ -122,7 +122,7 @@ static void led_init(gpio_pin_e* pin_ptr,uint16_t pin_num)
     {
         pin = *(pin_ptr + i);
         hal_gpio_pin_init(pin,IE);
-        hal_gpio_pull_set(pin,WEAK_PULL_UP);
+        hal_gpio_pull_set(pin,STRONG_PULL_UP);
     }
 }
 
