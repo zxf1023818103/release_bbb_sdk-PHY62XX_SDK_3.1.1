@@ -42,6 +42,7 @@
 #include "rf_phy_driver.h"
 #include "flash.h"
 #include "version.h"
+#include "watchdog.h"
 
 #define DEFAULT_UART_BAUD   115200
 
@@ -198,6 +199,7 @@ static void hal_rfphy_init(void)
     XTAL16M_CAP_SETTING(0x09);
     XTAL16M_CURRENT_SETTING(0x01);
     hal_rom_boot_init();
+    watchdog_config(WDG_2S);
     NVIC_SetPriority((IRQn_Type)BB_IRQn,    IRQ_PRIO_REALTIME);
     NVIC_SetPriority((IRQn_Type)TIM1_IRQn,  IRQ_PRIO_HIGH);     //ll_EVT
     NVIC_SetPriority((IRQn_Type)TIM2_IRQn,  IRQ_PRIO_HIGH);     //OSAL_TICK
