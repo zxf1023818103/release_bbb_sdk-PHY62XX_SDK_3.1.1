@@ -78,9 +78,6 @@
 /* Application */
 #include "bleMesh.h"
 
-/* Button */
-#include "bsp_button_task.h"
-
 /* SHT30 */
 #include "sht30.h"
 
@@ -104,7 +101,6 @@ const pTaskEventHandlerFn tasksArr[] =
     GATT_ProcessEvent,                                                  // task 4
     GATTServApp_ProcessEvent,                                           // task 5
     bleMesh_ProcessEvent,                                               // task 6
-    Bsp_Btn_ProcessEvent,                                               // task 7
     sht30_ProcessEvent,                                                 // task 8
 
     #if defined ( OSAL_CBTIMER_NUM_TASKS )
@@ -151,8 +147,6 @@ void osalInitTasks( void )
     GATTServApp_Init( taskID++ );
     /* Application */
     bleMesh_Init( taskID++ );
-    /* Button */
-    Bsp_Btn_Init( taskID++ );
     /* SHT30 */
     sht30_Init( taskID++ );
     #if defined ( OSAL_CBTIMER_NUM_TASKS )
