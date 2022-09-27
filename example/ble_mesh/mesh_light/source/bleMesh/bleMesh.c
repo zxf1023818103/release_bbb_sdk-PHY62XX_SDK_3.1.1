@@ -223,7 +223,11 @@ void bleMesh_Init( uint8 task_id )
     hal_gpio_pin_init(P15, GPIO_INPUT);
     hal_gpio_pull_set(P15, GPIO_PULL_DOWN);
 
-    osal_start_reload_timer(bleMesh_TaskID, BLEMESH_PIR_BODY_EVT, 500);
+    hal_gpio_pin_init(P31, GPIO_INPUT);
+    hal_gpio_pull_set(P31, GPIO_PULL_DOWN);
+
+    osal_start_reload_timer(bleMesh_TaskID, BLEMESH_PIR_BODY_EVT, 2000);
+    osal_start_reload_timer(bleMesh_TaskID, BLEMESH_RESET_EVT, 1000);
 }
 
 
@@ -329,7 +333,6 @@ uint16 bleMesh_ProcessEvent( uint8 task_id, uint16 events )
 
     if (events & BLEMESH_PIR_BODY_EVT)
     {
-        static bool last_status;
         bool status = hal_gpio_read(P15);
         // if (last_status != status) {
             if (status) {
@@ -371,8 +374,22 @@ uint16 bleMesh_ProcessEvent( uint8 task_id, uint16 events )
 		        LOG("no body\r\n");
             }
         // }
-        last_status = status;
         return (events ^ BLEMESH_PIR_BODY_EVT);
+    }
+
+    if (events & BLEMESH_RESET_EVT)
+    {
+        bool status = hal_gpio_read(P31);
+        if (status) {
+            LOG("reset device\n");
+            nvs_reset(NVS_BANK_PERSISTENT);
+            MS_access_cm_reset(PROV_ROLE_DEVICE);
+            hal_system_soft_reset();
+        }
+
+        uint16_t ret = BLEMESH_RESET_EVT;
+        events &= ~ret;
+        return events;
     }
     // Discard unknown events
     return 0;

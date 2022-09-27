@@ -146,7 +146,7 @@ uint16 sht30_ProcessEvent(uint8 task_id, uint16 events)
 
     if (events & SHT30_SEND_READ_EVT)
     {
-        hal_i2c_pin_init(I2C_0, P24, P23);
+        hal_i2c_pin_init(I2C_0, P2, P3);
         pi2cdev = hal_i2c_init(I2C_0, I2C_CLOCK_100K);
 
         write_command(SHT31_MEAS_HIGHREP);
@@ -242,7 +242,7 @@ uint16 sht30_ProcessEvent(uint8 task_id, uint16 events)
 
             } while (0);
 
-            osal_start_timerEx(sht30_TaskID, SHT30_SEND_READ_EVT, 500);
+            osal_start_timerEx(sht30_TaskID, SHT30_SEND_READ_EVT, 2000);
         }
     }
 
